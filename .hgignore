@@ -1,0 +1,10 @@
+syntax: glob
+
+*[Bb]in/
+*[Dd]ebug/
+*[Oo]bj/
+*[Rr]elease/
+*.vcxproj*
+
+asio.hpp
+asio/
