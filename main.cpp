@@ -23,13 +23,9 @@ public:
 	}
 
 	~Connection() {
-		try {
-			socket.shutdown(tcp::socket::shutdown_both);
-			socket.close();
-		}
-		catch (asio::system_error &e) {
-			std::cerr << "Error while closing connection: " << e.what() << "\n";
-		}
+		asio::error_code ec;
+		socket.shutdown(tcp::socket::shutdown_both, ec);
+		socket.close(ec);
 	}
 
 	void start() { get_req(); }
@@ -57,7 +53,7 @@ private:
 				}
 			}
 			else {
-				std::cout << ec.message() << '\n';
+				handle_error(ec);
 				this->respond(500);
 			}
 		});
@@ -85,7 +81,7 @@ private:
 				}
 			}
 			else {
-				std::cout << ec.message() << '\n';
+				handle_error(ec);
 				this->respond(500);
 			}
 		});
@@ -95,7 +91,16 @@ private:
 		auto self(shared_from_this());
 		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_write(socket, buf_out, [this, self](auto ec, auto) {
+			if (!ec) {
+				handle_error(ec);
+			}
 		});
+	}
+
+	void handle_error(asio::error_code err) {
+		if (err && err != asio::error::operation_aborted) {
+			std::cerr << err.message() << '\n';
+		}
 	}
 
 	void print() {
