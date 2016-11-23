@@ -39,6 +39,7 @@ private:
 
 	void get_req() {
 		auto self(shared_from_this());
+		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_read_until(socket, buf_in, "\r\n", [this, self](auto ec, auto) {
 			if (!ec) {
 				std::istream is(&buf_in);
@@ -64,6 +65,7 @@ private:
 
 	void get_headers() {
 		auto self(shared_from_this());
+		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_read_until(socket, buf_in, "\r\n", [this, self](auto ec, auto) {
 			if (!ec) {
 				std::istream is(&buf_in); std::string line;
@@ -91,6 +93,7 @@ private:
 
 	void respond(int stat) {
 		auto self(shared_from_this());
+		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_write(socket, buf_out, [this, self](auto ec, auto) {
 		});
 	}
@@ -141,6 +144,7 @@ private:
 		acceptor.async_accept([this](auto err, auto socket) {
 			if (!err) {
 				Connection::new_connection(std::move(socket))->start();
+				// `this->` is not actually needed, but works around a bug in gcc
 				this->do_accept();
 			}
 			else {
