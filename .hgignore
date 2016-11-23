@@ -8,3 +8,4 @@ syntax: glob
 
 asio.hpp
 asio/
+*.out
