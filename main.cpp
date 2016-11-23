@@ -37,7 +37,7 @@ private:
 		auto self(shared_from_this());
 		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_read_until(socket, buf_in, "\r\n", [this, self](auto ec, auto) {
-			if (!ec) {
+			if (this->handle_error(ec)) {
 				std::istream is(&buf_in);
 				std::string line;
 				std::getline(is, line);
@@ -53,7 +53,6 @@ private:
 				}
 			}
 			else {
-				handle_error(ec);
 				this->respond(500);
 			}
 		});
@@ -63,7 +62,7 @@ private:
 		auto self(shared_from_this());
 		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_read_until(socket, buf_in, "\r\n", [this, self](auto ec, auto) {
-			if (!ec) {
+			if (this->handle_error(ec)) {
 				std::istream is(&buf_in); std::string line;
 				std::getline(is, line);
 
@@ -81,7 +80,6 @@ private:
 				}
 			}
 			else {
-				handle_error(ec);
 				this->respond(500);
 			}
 		});
@@ -91,16 +89,21 @@ private:
 		auto self(shared_from_this());
 		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_write(socket, buf_out, [this, self](auto ec, auto) {
-			if (!ec) {
-				handle_error(ec);
+			if (this->handle_error(ec)) {
+
 			}
 		});
 	}
 
-	void handle_error(asio::error_code err) {
-		if (err && err != asio::error::operation_aborted) {
+	bool handle_error(asio::error_code err) {
+		if (!err)
+			return true;
+		if (err == asio::error::eof)
+			return true;
+		if (err != asio::error::operation_aborted && err) {
 			std::cerr << err.message() << '\n';
 		}
+		return false;
 	}
 
 	void print() {
