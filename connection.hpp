@@ -4,7 +4,7 @@
 #include <map>
 #include <regex>
 #include <string>
-//#include <vector>
+#include <vector>
 
 #include "asio.hpp"
 
@@ -130,9 +130,8 @@ private:
 			os << h.first << " = " << h.second << '\n';
 		}
 		os << "Body length: " << body.size() << '\n';
-		//os << std::hex;
+		os << std::hex;
 		for (const auto c : body) {
-			//os << (unsigned char)c;
 			os << c;
 		}
 	}
@@ -156,7 +155,7 @@ private:
 
 	std::string method, uri;
 	std::map<std::string, std::string, IgnoreCaseLT> headers;
-	std::vector<char> body;
+	std::vector<unsigned char> body;
 
 	asio::ip::tcp::socket socket;
 	asio::streambuf buf_in;
