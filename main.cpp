@@ -182,6 +182,7 @@ public:
 
 	void run() {
 		auto num_threads = std::thread::hardware_concurrency();
+		std::cout << "Starting server using " << num_threads << " threads";
 		for (unsigned int i = 0; i < num_threads; ++i) {
 			run_pool.emplace_back([this]() { io.run(); });
 		}
