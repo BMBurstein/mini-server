@@ -8,6 +8,8 @@
 
 #include "asio.hpp"
 
+#include "router.hpp"
+
 class Connection : public std::enable_shared_from_this<Connection>
 {
 public:
@@ -26,8 +28,14 @@ public:
 
 	void start() { get_req(); }
 
+	void set_response(std::string resp) {
+		std::ostream os(&buf_out);
+		os << "HTTP/1.1 200 OK\r\n\r\n";
+		os << resp;
+	}
+
 private:
-	Connection(asio::ip::tcp::socket socket) : socket(std::move(socket)) { }
+	Connection(asio::ip::tcp::socket socket, Router const& router) : socket(std::move(socket)), router(router) { }
 
 	void get_req() {
 		auto self(shared_from_this());
@@ -94,8 +102,13 @@ private:
 		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_read(socket, body_buf, [this, self](auto ec, auto) {
 			if (this->handle_error(ec)) {
-				this->make_test_response();
-				this->respond(200);
+				if (router.handle_route(uri, method, *this)) {
+					this->respond(200);
+				}
+				else {
+					this->make_test_response();
+					this->respond(500);
+				}
 			}
 		});
 	}
@@ -157,8 +170,10 @@ private:
 	std::map<std::string, std::string, IgnoreCaseLT> headers;
 	std::vector<unsigned char> body;
 
-	asio::ip::tcp::socket socket;
 	asio::streambuf buf_in;
+	asio::ip::tcp::socket socket;
+	Router const& router;
+
 	asio::streambuf buf_out;
 
 	const static std::regex re_req;

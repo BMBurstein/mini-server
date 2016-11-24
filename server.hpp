@@ -7,6 +7,7 @@
 #include "asio.hpp"
 
 #include "connection.hpp"
+#include "router.hpp"
 
 class Server
 {
@@ -26,11 +27,13 @@ public:
 		}
 	}
 
+	Router& get_router() { return router; }
+
 private:
 	void do_accept() {
 		acceptor.async_accept([this](auto err, auto socket) {
 			if (!err) {
-				Connection::new_connection(std::move(socket))->start();
+				Connection::new_connection(std::move(socket), router)->start();
 				// `this->` is not actually needed, but works around a bug in gcc
 				this->do_accept();
 			}
@@ -43,4 +46,5 @@ private:
 	asio::io_service io;
 	asio::ip::tcp::acceptor acceptor;
 	std::vector<std::thread> run_pool;
+	Router router;
 };
