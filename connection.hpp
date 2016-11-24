@@ -164,3 +164,7 @@ private:
 	const static std::regex re_req;
 	const static std::regex re_head;
 };
+
+// The '\r' at the end is needed since getline only strips the '\n'
+const std::regex Connection::re_req(R"(([A-Z]+) ([-/%.+?=&\w]+) HTTP/1.[10]\r)", std::regex::optimize);
+const std::regex Connection::re_head(R"(([-\w]+): (.*)\r)", std::regex::optimize);
