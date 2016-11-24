@@ -70,15 +70,36 @@ private:
 					this->get_headers();
 				}
 				else if (line == "\r") {
-					this->print();
-					this->respond(200);
+					this->get_body();
 				}
 				else {
 					this->respond(400);
 				}
 			}
-			else {
-				this->respond(500);
+		});
+	}
+
+	void get_body() {
+		std::size_t len = 0;
+		auto it = headers.find("content-length");
+		if (it != headers.end()) {
+			try {
+				len = std::stoull(it->second.c_str());
+			}
+			catch (const std::exception&) {}
+		}
+		body.resize(len);
+		auto have_len = buf_in.size();
+		asio::buffer_copy(asio::buffer(body), buf_in.data());
+		buf_in.consume(have_len);
+		auto body_buf = asio::buffer(body.data() + have_len, len - have_len);
+
+		auto self(shared_from_this());
+		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
+		asio::async_read(socket, body_buf, [this, self](auto ec, auto) {
+			if (this->handle_error(ec)) {
+				this->make_test_response();
+				this->respond(200);
 			}
 		});
 	}
@@ -105,12 +126,17 @@ private:
 		return false;
 	}
 
-	void print() {
+	void make_test_response() {
 		std::ostream os(&buf_out);
 		os << "HTTP/1.1 200 OK\r\n\r\n";
 		os << method << ' ' << uri << '\n';
 		for (const auto& h : headers) {
 			os << h.first << " = " << h.second << '\n';
+		}
+		os << "Body length: " << body.size() << '\n';
+		os << std::hex;
+		for (const auto c : body) {
+			os << c;
 		}
 	}
 
