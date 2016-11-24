@@ -52,9 +52,6 @@ private:
 					this->respond(400);
 				}
 			}
-			else {
-				this->respond(500);
-			}
 		});
 	}
 
@@ -63,7 +60,8 @@ private:
 		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
 		asio::async_read_until(socket, buf_in, "\r\n", [this, self](auto ec, auto) {
 			if (this->handle_error(ec)) {
-				std::istream is(&buf_in); std::string line;
+				std::istream is(&buf_in);
+				std::string line;
 				std::getline(is, line);
 
 				std::smatch parts;
@@ -100,7 +98,8 @@ private:
 			return true;
 		if (err == asio::error::eof)
 			return true;
-		if (err != asio::error::operation_aborted && err) {
+		if (err != asio::error::operation_aborted) {
+			respond(500);
 			std::cerr << err.message() << '\n';
 		}
 		return false;
@@ -138,7 +137,7 @@ public:
 	}
 
 	void run() {
-		auto num_threads = std::thread::hardware_concurrency() * 2;
+		auto num_threads = std::thread::hardware_concurrency();
 		for (unsigned int i = 0; i < num_threads; ++i) {
 			run_pool.emplace_back([this]() { io.run(); });
 		}
