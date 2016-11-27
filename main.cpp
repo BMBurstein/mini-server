@@ -1,7 +1,7 @@
 #include "server.hpp"
 
-void home(std::smatch const& path, Router::Methods, Connection& con) {
-	con.set_response("Hi from " + path[0].str());
+void home(std::smatch const& path, Router::Methods, Connection::ptr con) {
+	con->send_response(200, "", "Hi from " + path[0].str());
 }
 
 int main()

@@ -8,6 +8,8 @@
 
 class Connection;
 
+typedef std::shared_ptr<Connection> Connection_ptr;
+
 class Router
 {
 public:
@@ -19,12 +21,12 @@ public:
 		OPTIONS = 0x08,
 	};
 
-	void add_route(std::string const& route, uint8_t methods, std::function<void(std::smatch const&, Methods, Connection&)> handler) {
+	void add_route(std::string const& route, uint8_t methods, std::function<void(std::smatch const&, Methods, Connection_ptr)> handler) {
 		std::regex route_regex(route, std::regex::optimize);
 		routes.emplace_back(route_regex, methods, handler);
 	}
 
-	bool handle_route(std::string const& route, std::string const& method_name, Connection& con) const {
+	bool handle_route(std::string const& route, std::string const& method_name, Connection_ptr con) const {
 		auto method = method_from_name(method_name);
 		for (auto& r : routes) {
 			std::smatch parts;
@@ -44,5 +46,5 @@ private:
 		if (name == "OPTIONS") return OPTIONS;
 		return UNKNOWN;
 	}
-	std::vector<std::tuple<std::regex, std::uint8_t, std::function<void(std::smatch const&, Methods, Connection&)>>> routes;
+	std::vector<std::tuple<std::regex, std::uint8_t, std::function<void(std::smatch const&, Methods, Connection_ptr)>>> routes;
 };
