@@ -8,7 +8,8 @@
 
 class Connection;
 
-class Router {
+class Router
+{
 public:
 	enum Methods {
 		UNKNOWN = 0x00,
@@ -23,7 +24,7 @@ public:
 		routes.emplace_back(route_regex, methods, handler);
 	}
 
-	bool handle_route(std::string route, std::string method_name, Connection& con) const {
+	bool handle_route(std::string const& route, std::string const& method_name, Connection& con) const {
 		auto method = method_from_name(method_name);
 		for (auto& r : routes) {
 			std::smatch parts;
@@ -36,7 +37,7 @@ public:
 	}
 
 private:
-	Methods method_from_name(std::string& name) const {
+	Methods method_from_name(std::string const& name) const {
 		if (name == "GET") return GET;
 		if (name == "POST") return POST;
 		if (name == "HEAD") return HEAD;
