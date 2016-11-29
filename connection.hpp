@@ -9,7 +9,7 @@
 
 #include "asio.hpp"
 
-#include "router.hpp"
+class Router;
 
 class Connection : public std::enable_shared_from_this<Connection>
 {
@@ -62,6 +62,9 @@ public:
 		});
 	}
 
+	HeaderMap const& getHeaders() { return req_headers; }
+	DATA const& getBody() { return req_body; }
+
 private:
 	Connection(asio::ip::tcp::socket socket, Router const& router) : socket(std::move(socket)), router(router) { }
 
@@ -111,31 +114,7 @@ private:
 		});
 	}
 
-	void get_body() {
-		std::size_t len = 0;
-		auto it = req_headers.find("content-length");
-		if (it != req_headers.end()) {
-			try {
-				len = std::stoull(it->second.c_str());
-			}
-			catch (const std::exception&) {}
-		}
-		req_body.resize(len);
-		auto have_len = buf_in.size();
-		asio::buffer_copy(asio::buffer(req_body), buf_in.data());
-		buf_in.consume(have_len);
-		auto body_buf = asio::buffer(req_body.data() + have_len, len - have_len);
-
-		auto self(shared_from_this());
-		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
-		asio::async_read(socket, body_buf, [this, self](auto ec, auto) {
-			if (this->handle_error(ec)) {
-				if (!router.handle_route(uri, method, self)) {
-					this->make_test_response();
-				}
-			}
-		});
-	}
+	void get_body();
 
 	void respond(int stat) {
 		send_response(stat, "", "");
@@ -181,6 +160,34 @@ private:
 	const static std::regex re_req;
 	const static std::regex re_head;
 };
+
+#include "router.hpp"
+
+inline void Connection::get_body() {
+	std::size_t len = 0;
+	auto it = req_headers.find("content-length");
+	if (it != req_headers.end()) {
+		try {
+			len = std::stoull(it->second.c_str());
+		}
+		catch (const std::exception&) {}
+	}
+	req_body.resize(len);
+	auto have_len = buf_in.size();
+	asio::buffer_copy(asio::buffer(req_body), buf_in.data());
+	buf_in.consume(have_len);
+	auto body_buf = asio::buffer(req_body.data() + have_len, len - have_len);
+
+	auto self(shared_from_this());
+	// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
+	asio::async_read(socket, body_buf, [this, self](auto ec, auto) {
+		if (this->handle_error(ec)) {
+			if (!router.handle_route(uri, method, self)) {
+				this->make_test_response();
+			}
+		}
+	});
+}
 
 // The '\r' at the end is needed since getline only strips the '\n'
 const std::regex Connection::re_req(R"(([A-Z]+) ([-/%.+?=&\w]+) HTTP/1.[10]\r)", std::regex::optimize);
