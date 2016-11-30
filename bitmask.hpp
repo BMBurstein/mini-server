@@ -1,5 +1,9 @@
 #pragma once
 
+// This file was adapted by Baruch Burstein from
+// http://blog.bitwigglers.org/using-enum-classes-as-type-safe-bitmasks/
+// https://www.justsoftwaresolutions.co.uk/files/bitmask_operators.hpp
+
 // (C) Copyright 2015 Just Software Solutions Ltd
 //
 // Distributed under the Boost Software License, Version 1.0.
@@ -37,10 +41,10 @@
 template<typename E>
 struct enable_bitmask_operators : std::false_type { };
 
-// Added from http://blog.bitwigglers.org/using-enum-classes-as-type-safe-bitmasks/
-#define ENABLE_BITMASK_OPERATORS(x) \
+#define ENABLE_BITMASK_OPERATORS(X) \
 template<>                          \
-struct enable_bitmask_operators<x> : std::true_type { }
+struct enable_bitmask_operators<X>  \
+		: std::conditional<std::is_enum<X>::value, std::true_type, std::false_type>::type { }
 
 template<typename E>
 typename std::enable_if<enable_bitmask_operators<E>::value, E>::type
