@@ -44,63 +44,56 @@ struct enable_bitmask_operators : std::false_type { };
 #define ENABLE_BITMASK_OPERATORS(X) \
 template<>                          \
 struct enable_bitmask_operators<X>  \
-		: std::conditional<std::is_enum<X>::value, std::true_type, std::false_type>::type { }
+		: std::conditional_t<std::is_enum<X>::value, std::true_type, std::false_type> { }
 
 template<typename E>
-typename std::enable_if<enable_bitmask_operators<E>::value, E>::type
+typename std::enable_if_t<enable_bitmask_operators<E>::value, E>
 operator|(E lhs, E rhs) {
-	typedef typename std::underlying_type<E>::type underlying;
-	return static_cast<E>(
-		static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
+	typedef std::underlying_type<E>::type underlying;
+	return static_cast<E>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
 }
 
 template<typename E>
-typename std::enable_if<enable_bitmask_operators<E>::value, E>::type
+typename std::enable_if_t<enable_bitmask_operators<E>::value, E>
 operator&(E lhs, E rhs) {
-	typedef typename std::underlying_type<E>::type underlying;
-	return static_cast<E>(
-		static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
+	typedef std::underlying_type<E>::type underlying;
+	return static_cast<E>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
 }
 
 template<typename E>
-typename std::enable_if<enable_bitmask_operators<E>::value, E>::type
+typename std::enable_if_t<enable_bitmask_operators<E>::value, E>
 operator^(E lhs, E rhs) {
-	typedef typename std::underlying_type<E>::type underlying;
-	return static_cast<E>(
-		static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
+	typedef std::underlying_type<E>::type underlying;
+	return static_cast<E>(static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
 }
 
 template<typename E>
-typename std::enable_if<enable_bitmask_operators<E>::value, E>::type
+typename std::enable_if_t<enable_bitmask_operators<E>::value, E>
 operator~(E lhs) {
-	typedef typename std::underlying_type<E>::type underlying;
-	return static_cast<E>(
-		~static_cast<underlying>(lhs));
+	typedef std::underlying_type<E>::type underlying;
+	return static_cast<E>(~static_cast<underlying>(lhs));
 }
 
 template<typename E>
-typename std::enable_if<enable_bitmask_operators<E>::value, E&>::type
+typename std::enable_if_t<enable_bitmask_operators<E>::value, E>
 operator|=(E& lhs, E rhs) {
-	typedef typename std::underlying_type<E>::type underlying;
-	lhs = static_cast<E>(
-		static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
+	typedef std::underlying_type<E>::type underlying;
+	lhs = static_cast<E>(static_cast<underlying>(lhs) | static_cast<underlying>(rhs));
 	return lhs;
 }
 
 template<typename E>
-typename std::enable_if<enable_bitmask_operators<E>::value, E&>::type
+typename std::enable_if_t<enable_bitmask_operators<E>::value, E>
 operator&=(E& lhs, E rhs) {
-	typedef typename std::underlying_type<E>::type underlying;
-	lhs = static_cast<E>(
-		static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
+	typedef std::underlying_type<E>::type underlying;
+	lhs = static_cast<E>(static_cast<underlying>(lhs) & static_cast<underlying>(rhs));
 	return lhs;
 }
 
 template<typename E>
-typename std::enable_if<enable_bitmask_operators<E>::value, E&>::type
+typename std::enable_if_t<enable_bitmask_operators<E>::value, E>
 operator^=(E& lhs, E rhs) {
-	typedef typename std::underlying_type<E>::type underlying;
-	lhs = static_cast<E>(
-		static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
+	typedef std::underlying_type<E>::type underlying;
+	lhs = static_cast<E>(static_cast<underlying>(lhs) ^ static_cast<underlying>(rhs));
 	return lhs;
 }
