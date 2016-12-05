@@ -27,9 +27,10 @@ public:
 		do_accept();
 	}
 
-	void run() {
-		auto num_threads = std::thread::hardware_concurrency();
-		std::cout << "Starting server using " << num_threads << " threads";
+	void run(unsigned int num_threads = (std::thread::hardware_concurrency()-1)) {
+		if (num_threads == 0)
+			num_threads = 1;
+		std::cout << "Starting server using " << num_threads << " threads\n";
 		for (unsigned int i = 0; i < num_threads; ++i) {
 			run_pool.emplace_back([this]() { io.run(); });
 		}
