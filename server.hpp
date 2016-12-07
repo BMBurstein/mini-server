@@ -12,16 +12,16 @@
 class Server
 {
 public:
-	Server(unsigned short port = 80) : strand(io), signals(io), acceptor(io, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {
+	Server(unsigned short port = 80) : signals(io), acceptor(io, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), port)) {
 		signals.add(SIGINT);
 		signals.add(SIGTERM);
 #if defined(SIGQUIT)
 		signals.add(SIGQUIT);
 #endif // defined(SIGQUIT)
-		signals.async_wait(asio::bind_executor(strand, [this](auto, auto) {
+		signals.async_wait([this](auto, auto) {
 			std::cerr << "stopping... ";
 			acceptor.close();
-		}));
+		});
 
 		do_accept();
 	}
@@ -42,24 +42,24 @@ public:
 
 private:
 	void do_accept() {
-		acceptor.async_accept(asio::bind_executor(strand, [this](auto err, asio::ip::tcp::socket&& socket) {
-			if (!acceptor.is_open()) {
-				std::cerr << "Stopped\n";
-				return;
-			}
+		acceptor.async_accept([this](auto err, asio::ip::tcp::socket&& socket) {
 			if (!err) {
 				Connection::new_connection(std::move(socket), router)->start();
 				// `this->` is not actually needed, but works around a bug in gcc
 				this->do_accept();
 			}
 			else {
-				std::cerr << err.message() << '\n';
+				if (err.value() == asio::error::operation_aborted) {
+					std::cerr << "Stopped\n";
+				}
+				else {
+					std::cerr << err.message() << '\n';
+				}
 			}
-		}));
+		});
 	}
 
 	asio::io_service io;
-	asio::io_service::strand strand;
 	asio::signal_set signals;
 	asio::ip::tcp::acceptor acceptor;
 	std::vector<std::thread> run_pool;
