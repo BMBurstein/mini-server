@@ -46,7 +46,7 @@ inline bool Router::handle_route(std::string const& route, std::string const& me
 	for (auto& r : routes) {
 		std::smatch parts;
 		if (((method & std::get<1>(r)) == method) && std::regex_match(route, parts, std::get<0>(r))) {
-			std::get<2>(r)(parts, method, con);
+			std::get<2>(r)(parts, method, std::move(con));
 			return true;
 		}
 	}

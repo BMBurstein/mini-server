@@ -52,10 +52,10 @@ public:
 	void send_response(int status, std::string const& headers, std::string const& body) {
 		std::ostream os(&resp_buf);
 
-		os << "HTTP/1.1 " << status << " \r\n" << headers << "\r\n" << body;
+		os << "HTTP/1.1 " << status << " NA\r\nContent-length: " << body.length() << "\r\n" << headers << "\r\n" << body;
 
 		auto self(shared_from_this());
-		asio::async_write(socket, resp_buf, [this, self](auto ec, auto) {
+		asio::async_write(socket, resp_buf, [this, self = std::move(self)](auto ec, auto) {
 			if (this->handle_error(ec)) {
 
 			}
@@ -71,7 +71,7 @@ private:
 	void get_req() {
 		auto self(shared_from_this());
 		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
-		asio::async_read_until(socket, buf_in, "\r\n", [this, self](auto ec, auto) {
+		asio::async_read_until(socket, buf_in, "\r\n", [this, self = std::move(self)](auto ec, auto) {
 			if (this->handle_error(ec)) {
 				std::istream is(&buf_in);
 				std::string line;
@@ -84,7 +84,7 @@ private:
 					this->get_headers();
 				}
 				else {
-					this->respond(400);
+					// not HTTP, just close connection
 				}
 			}
 		});
@@ -93,7 +93,7 @@ private:
 	void get_headers() {
 		auto self(shared_from_this());
 		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
-		asio::async_read_until(socket, buf_in, "\r\n", [this, self](auto ec, auto) {
+		asio::async_read_until(socket, buf_in, "\r\n", [this, self = std::move(self)](auto ec, auto) {
 			if (this->handle_error(ec)) {
 				std::istream is(&buf_in);
 				std::string line;
@@ -180,9 +180,9 @@ inline void Connection::get_body() {
 
 	auto self(shared_from_this());
 	// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
-	asio::async_read(socket, body_buf, [this, self](auto ec, auto) {
+	asio::async_read(socket, body_buf, [this, self = std::move(self)](auto ec, auto) {
 		if (this->handle_error(ec)) {
-			if (!router.handle_route(uri, method, self)) {
+			if (!router.handle_route(uri, method, std::move(self))) {
 				this->make_test_response();
 			}
 		}
