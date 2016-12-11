@@ -42,9 +42,10 @@ template<typename E>
 struct enable_bitmask_operators : std::false_type { };
 
 #define ENABLE_BITMASK_OPERATORS(X) \
-template<>                          \
-struct enable_bitmask_operators<X>  \
-		: std::conditional_t<std::is_enum<X>::value, std::true_type, std::false_type> { }
+template<> \
+struct enable_bitmask_operators<X> : std::true_type { \
+	static_assert(std::is_enum<X>::value, "Cannot enable bitmask operators on non-enum type"); \
+}
 
 template<typename E>
 typename std::enable_if_t<enable_bitmask_operators<E>::value, E>
