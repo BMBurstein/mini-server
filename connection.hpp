@@ -26,10 +26,9 @@ namespace bb {
 				}
 			};
 			bool operator() (const std::string & s1, const std::string & s2) const {
-				return std::lexicographical_compare
-				(s1.begin(), s1.end(),   // source range
-					s2.begin(), s2.end(),   // dest range
-					nocase_compare());  // comparison
+				return std::lexicographical_compare(s1.begin(), s1.end(),   // source range
+				                                    s2.begin(), s2.end(),   // dest range
+				                                    nocase_compare());      // comparison
 			}
 		};
 
@@ -51,17 +50,30 @@ namespace bb {
 
 		void start() { get_req(); }
 
-		void send_response(int status, std::string const& headers, std::string const& body) {
-			std::ostream os(&resp_buf);
-
-			os << "HTTP/1.1 " << status << " NA\r\nContent-Length: " << body.length() << "\r\n" << headers << "\r\n" << body;
-
-			auto self(shared_from_this());
-			asio::async_write(socket, resp_buf, [this, self = std::move(self)](auto ec, auto) {
-				if (this->handle_error(ec)) {
-					get_req();
+		template<typename T>
+		auto send_response(T resp) -> decltype(asio::buffer(resp), void()) {
+			auto ptr = std::make_unique<T>(std::move(resp));
+			auto buf = asio::buffer(*ptr);
+			asio::async_write(socket, buf, [this, self = shared_from_this(), ptr{ std::move(ptr) }](auto ec, auto) {
+				if (handle_error(ec)) {
+					get_req(); // reuse connection
 				}
 			});
+		}
+
+		void send_response(asio::streambuf resp) {
+			asio::async_write(socket, resp, [this, self = shared_from_this()](auto ec, auto) {
+				if (handle_error(ec)) {
+					get_req(); // reuse connection
+				}
+			});
+		}
+
+		void send_response(int status, std::string const& headers, std::string const& body) {
+			asio::streambuf resp_buf;
+			std::ostream os(&resp_buf);
+			os << "HTTP/1.1 " << status << " STAT\r\nContent-Length: " << body.length() << "\r\n" << headers << "\r\n" << body;
+			send_response(std::move(resp_buf));
 		}
 
 		HeaderMap const& getHeaders() { return req_headers; }
@@ -71,10 +83,8 @@ namespace bb {
 		Connection(asio::ip::tcp::socket socket, Router const& router) : socket(std::move(socket)), router(router) { }
 
 		void get_req() {
-			auto self(shared_from_this());
-			// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
-			asio::async_read_until(socket, buf_in, "\r\n", [this, self = std::move(self)](auto ec, auto) {
-				if (this->handle_error(ec)) {
+			asio::async_read_until(socket, buf_in, "\r\n", [this, self = shared_from_this()](auto ec, auto) {
+				if (handle_error(ec)) {
 					std::istream is(&buf_in);
 					std::string line;
 					std::getline(is, line);
@@ -83,7 +93,7 @@ namespace bb {
 					if (std::regex_match(line, parts, re_req)) {
 						method = parts[1];
 						uri = parts[2];
-						this->get_headers();
+						get_headers();
 					}
 					else {
 						// not HTTP, just close connection
@@ -93,10 +103,8 @@ namespace bb {
 		}
 
 		void get_headers() {
-			auto self(shared_from_this());
-			// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
-			asio::async_read_until(socket, buf_in, "\r\n", [this, self = std::move(self)](auto ec, auto) {
-				if (this->handle_error(ec)) {
+			asio::async_read_until(socket, buf_in, "\r\n", [this, self = shared_from_this()](auto ec, auto) {
+				if (handle_error(ec)) {
 					std::istream is(&buf_in);
 					std::string line;
 					std::getline(is, line);
@@ -104,13 +112,13 @@ namespace bb {
 					std::smatch parts;
 					if (std::regex_match(line, parts, re_head)) {
 						req_headers[parts[1]] = parts[2];
-						this->get_headers();
+						get_headers();
 					}
 					else if (line == "\r") {
-						this->get_body();
+						get_body();
 					}
 					else {
-						this->respond(400);
+						respond(400);
 					}
 				}
 			});
@@ -145,10 +153,8 @@ namespace bb {
 			for (const auto c : req_body) {
 				os << c;
 			}
-			send_response(500, "", os.str());
+			send_response(404, "", os.str());
 		}
-
-		asio::streambuf resp_buf;
 
 		std::string method, uri;
 		HeaderMap req_headers;
@@ -181,12 +187,10 @@ namespace bb {
 		buf_in.consume(have_len);
 		auto body_buf = asio::buffer(req_body.data() + have_len, len - have_len);
 
-		auto self(shared_from_this());
-		// passing `self` by val to the lambda ensures that the shared pointer doesn't destroy it before the lambda gets called
-		asio::async_read(socket, body_buf, [this, self = std::move(self)](auto ec, auto) {
-			if (this->handle_error(ec)) {
+		asio::async_read(socket, body_buf, [this, self = shared_from_this()](auto ec, auto) {
+			if (handle_error(ec)) {
 				if (!router.handle_route(uri, method, std::move(self))) {
-					this->make_test_response();
+					make_test_response();
 				}
 			}
 		});
