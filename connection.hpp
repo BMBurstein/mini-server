@@ -54,7 +54,7 @@ namespace bb {
 		auto send_response(T resp) -> decltype(asio::buffer(resp), void()) {
 			auto ptr = std::make_unique<T>(std::move(resp));
 			auto buf = asio::buffer(*ptr);
-			asio::async_write(socket, buf, [this, self = shared_from_this(), ptr{ std::move(ptr) }](auto ec, auto) {
+			asio::async_write(socket, buf, [this, self{ shared_from_this() }, ptr{ std::move(ptr) }](auto ec, auto) {
 				if (handle_error(ec)) {
 					get_req(); // reuse connection
 				}
@@ -62,7 +62,9 @@ namespace bb {
 		}
 
 		void send_response(asio::streambuf resp) {
-			asio::async_write(socket, resp, [this, self = shared_from_this()](auto ec, auto) {
+			auto ptr = std::make_unique<asio::streambuf>(std::move(resp));
+			auto& buf = *ptr;
+			asio::async_write(socket, buf, [this, self{ shared_from_this() }, ptr{ std::move(ptr) }](auto ec, auto) {
 				if (handle_error(ec)) {
 					get_req(); // reuse connection
 				}
@@ -83,7 +85,7 @@ namespace bb {
 		Connection(asio::ip::tcp::socket socket, Router const& router) : socket(std::move(socket)), router(router) { }
 
 		void get_req() {
-			asio::async_read_until(socket, buf_in, "\r\n", [this, self = shared_from_this()](auto ec, auto) {
+			asio::async_read_until(socket, buf_in, "\r\n", [this, self{ shared_from_this() }](auto ec, auto) {
 				if (handle_error(ec)) {
 					std::istream is(&buf_in);
 					std::string line;
@@ -103,7 +105,7 @@ namespace bb {
 		}
 
 		void get_headers() {
-			asio::async_read_until(socket, buf_in, "\r\n", [this, self = shared_from_this()](auto ec, auto) {
+			asio::async_read_until(socket, buf_in, "\r\n", [this, self{ shared_from_this() }](auto ec, auto) {
 				if (handle_error(ec)) {
 					std::istream is(&buf_in);
 					std::string line;
@@ -187,7 +189,7 @@ namespace bb {
 		buf_in.consume(have_len);
 		auto body_buf = asio::buffer(req_body.data() + have_len, len - have_len);
 
-		asio::async_read(socket, body_buf, [this, self = shared_from_this()](auto ec, auto) {
+		asio::async_read(socket, body_buf, [this, self{ shared_from_this() }](auto ec, auto) {
 			if (handle_error(ec)) {
 				if (!router.handle_route(uri, method, std::move(self))) {
 					make_test_response();
