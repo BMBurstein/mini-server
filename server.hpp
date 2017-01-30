@@ -27,7 +27,7 @@ namespace bb {
 			do_accept();
 		}
 
-		void run(unsigned int num_threads = (std::thread::hardware_concurrency() - 1)) {
+		void run(unsigned int num_threads = 1) {
 			if (num_threads == 0)
 				num_threads = 1;
 			std::cerr << "Starting server on " << acceptor.local_endpoint().address() << ":" << acceptor.local_endpoint().port() << " using " << num_threads << " threads\n";
