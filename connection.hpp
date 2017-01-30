@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -43,9 +44,8 @@ namespace bb {
 		}
 
 		~Connection() {
-			asio::error_code ec;
-			socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
-			socket.close(ec);
+			shutdown();
+
 		}
 
 		void start() { get_req(); }
@@ -82,9 +82,26 @@ namespace bb {
 		DATA const& getBody() { return req_body; }
 
 	private:
-		Connection(asio::ip::tcp::socket socket, Router const& router) : socket(std::move(socket)), router(router) { }
+		Connection(asio::ip::tcp::socket socket, Router const& router) : socket(std::move(socket)), router(router), reset_timer(this->socket.get_executor().context()) { }
+
+		void start_timer() {
+			reset_timer.expires_after(std::chrono::seconds(5));
+			reset_timer.async_wait([this, self{ shared_from_this() }](auto const& ec){
+				if (!ec) {
+					shutdown();
+				}
+			});
+		}
+
+		void shutdown()
+		{
+			asio::error_code ec;
+			socket.shutdown(asio::ip::tcp::socket::shutdown_both, ec);
+			socket.close(ec);
+		}
 
 		void get_req() {
+			start_timer();
 			asio::async_read_until(socket, buf_in, "\r\n", [this, self{ shared_from_this() }](auto ec, auto) {
 				if (handle_error(ec)) {
 					std::istream is(&buf_in);
@@ -165,6 +182,7 @@ namespace bb {
 		asio::streambuf buf_in;
 		asio::ip::tcp::socket socket;
 		Router const& router;
+		asio::steady_timer reset_timer;
 
 		const static std::regex re_req;
 		const static std::regex re_head;
@@ -179,7 +197,7 @@ namespace bb {
 		auto it = req_headers.find("content-length");
 		if (it != req_headers.end()) {
 			try {
-				len = std::stoull(it->second.c_str());
+				len = std::stoul(it->second.c_str());
 			}
 			catch (const std::exception&) {}
 		}
