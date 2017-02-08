@@ -1,5 +1,7 @@
 #include <thread>
 
+#define ASIO_STANDALONE 1
+#define ASIO_NO_DEPRECATED 1
 #include "server.hpp"
 
 using namespace bb;
