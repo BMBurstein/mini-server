@@ -6,7 +6,7 @@
 
 #include "asio.hpp"
 
-#include "connection.hpp"
+#include "server_connection.hpp"
 #include "router.hpp"
 
 namespace bb {
@@ -46,6 +46,8 @@ namespace bb {
 		auto add_route(T&& ... all) {
 			return router.add_route(std::forward<T>(all)...);
 		}
+
+		asio::io_context& context() { return io; }
 
 	private:
 		void do_accept() {

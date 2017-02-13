@@ -68,7 +68,7 @@ namespace bb {
 					std::smatch parts;
 					if (std::regex_match(line, parts, re_req)) {
 						method = parts[1];
-						uri = parts[2];
+						uri = url_decode(parts[2]);
 						get_headers();
 					}
 					else {
@@ -76,6 +76,30 @@ namespace bb {
 					}
 				}
 			});
+		}
+
+		static char from_hex(char c) {
+			if (c >= '0' && c <= '9') return c - '0';
+			if (c >= 'A' && c <= 'F') return c - 'A' + 0xA;
+			if (c >= 'a' && c <= 'f') return c - 'a' + 0xA;
+			return 0;
+		}
+
+		static std::string url_decode(std::string const& url) {
+			std::string dec;
+			dec.reserve(url.length());
+			auto pe = url.end();
+			for (auto p = url.begin(); p != pe; ++p) {
+				if (*p == '%') {
+					char c = from_hex(*++p) << 4;
+					c |= from_hex(*++p);
+					dec += c;
+				}
+				else {
+					dec += *p;
+				}
+			}
+			return dec;
 		}
 
 		void handle_body();
