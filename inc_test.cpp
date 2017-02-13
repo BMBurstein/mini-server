@@ -1,7 +1,8 @@
 //#include "bitmask.hpp"
 //#include "methods.hpp"
 //#include "router.hpp"
-//#include "connection.hpp"
+//#include "server_connection.hpp"
+//#include "client_connection.hpp"
 //#include "server.hpp"
 // 
 // #include "connection_base.hpp"
