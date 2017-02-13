@@ -16,8 +16,11 @@ namespace bb {
 	{
 	private:
 		typedef std::shared_ptr<Connection> ConnectionPtr;
+	
 	public:
-		void add_route(std::string const& route, Methods methods, std::function<void(std::smatch const&, Methods, ConnectionPtr)> handler) {
+		typedef std::function<void(std::smatch const&, Methods, ConnectionPtr)> HandlerFunc;
+
+		void add_route(std::string const& route, Methods methods, HandlerFunc handler) {
 			std::regex route_regex(route, std::regex::optimize);
 			routes.emplace_back(route_regex, methods, handler);
 		}
@@ -35,6 +38,6 @@ namespace bb {
 		}
 
 	private:
-		std::vector<std::tuple<std::regex, Methods, std::function<void(std::smatch const&, Methods, ConnectionPtr)>>> routes;
+		std::vector<std::tuple<std::regex, Methods, HandlerFunc>> routes;
 	}; // class Router
 } // namespace bb
