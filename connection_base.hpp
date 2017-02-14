@@ -9,7 +9,7 @@
 namespace bb {
 
 	template<typename T>
-	class http_connection_base : protected std::enable_shared_from_this<T> {
+	class http_connection_base : public std::enable_shared_from_this<T> {
 	protected:
 		// source: http://stackoverflow.com/a/1801913/331785
 		struct IgnoreCaseLT {
@@ -45,7 +45,7 @@ namespace bb {
 		http_connection_base(asio::ip::tcp::socket socket) : socket(std::move(socket)) { }
 
 		void get_headers() {
-			asio::async_read_until(socket, buf_in, "\r\n", [this, self{ shared_from_this() }](auto ec, auto) {
+			asio::async_read_until(socket, buf_in, "\r\n", [this, self{ this->shared_from_this() }](auto ec, auto) {
 				if (self->handle_error(ec)) {
 					std::istream is(&buf_in);
 					std::string line;
@@ -81,7 +81,7 @@ namespace bb {
 			buf_in.consume(have_len);
 			auto body_buf = asio::buffer(rcv_body.data() + have_len, len - have_len);
 
-			asio::async_read(socket, body_buf, [this, self{ shared_from_this() }](auto ec, auto) {
+			asio::async_read(socket, body_buf, [this, self{ this->shared_from_this() }](auto ec, auto) {
 				if (self->handle_error(ec)) {
 					self->handle_body();
 				}
