@@ -35,7 +35,11 @@ namespace bb {
 			}
 		}
 
-		void send_request(std::string const& uri, std::string const& headers, HandlerFunc func, Methods method = Methods::GET, std::string const& body = "") {
+		void send_request(std::string const& uri, std::string const& headers, HandlerFunc func) {
+			send_request(Methods::GET, uri, headers, "", std::move(func));
+		}
+
+		void send_request(Methods method, std::string const& uri, std::string const& headers, std::string const& body, HandlerFunc func) {
 			asio::streambuf resp_buf;
 			std::ostream os(&resp_buf);
 			os << name_from_method(method) << ' ' << uri << " HTTP/1.1\r\nHost: " << host << "\r\nContent-Length: " << body.length() << "\r\n" << headers << "\r\n" << body;
