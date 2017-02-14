@@ -23,13 +23,16 @@ namespace bb {
 
 		void send_request(asio::streambuf resp, HandlerFunc func) {
 			handler = func;
-			auto ptr = std::make_unique<asio::streambuf>(std::move(resp));
-			auto& buf = *ptr;
-			asio::async_write(socket, buf, [this, self{ shared_from_this() }, ptr{ std::move(ptr) }](auto ec, auto) {
-				if (handle_error(ec)) {
-					get_resp();
-				}
-			});
+			if (!socket.is_open()) {
+				asio::async_connect(socket, endpoints, [this, self{ shared_from_this() }, resp{ std::move(resp) }](auto ec, auto) mutable {
+					if (handle_error(ec)) {
+						send_req_impl(std::move(resp));
+					}
+				});
+			}
+			else {
+				send_req_impl(std::move(resp));
+			}
 		}
 
 		void send_request(std::string const& uri, std::string const& headers, HandlerFunc func, Methods method = Methods::GET, std::string const& body = "") {
@@ -44,12 +47,20 @@ namespace bb {
 	private:
 		friend http_connection_base<ClientConnection>;
 
-		ClientConnection(asio::io_context& context, std::string host_url, std::string const& port) : http_connection_base(asio::ip::tcp::socket(context)), endpoints(asio::ip::tcp::resolver(context).resolve(host_url, port)), host(std::move(host_url)) {
-			asio::error_code ec;
-			asio::connect(socket, endpoints, ec);
-			if (ec) {
-				std::cerr << ec.message();
-			}
+		ClientConnection(asio::io_context& context, std::string host_url, std::string const& port)
+		  : http_connection_base(asio::ip::tcp::socket(context)),
+			endpoints(asio::ip::tcp::resolver(context).resolve(host_url, port)),
+			host(std::move(host_url))
+		{ }
+
+		void send_req_impl(asio::streambuf resp) {
+			auto ptr = std::make_unique<asio::streambuf>(std::move(resp));
+			auto& buf = *ptr;
+			asio::async_write(socket, buf, [this, self{ shared_from_this() }, ptr{ std::move(ptr) }](auto ec, auto) {
+				if (handle_error(ec)) {
+					get_resp();
+				}
+			});
 		}
 
 		void get_resp() {
