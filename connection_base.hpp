@@ -86,6 +86,14 @@ namespace bb {
 			});
 		}
 
+		static std::string headers_string(HeaderMap const& headers) {
+			std::string ret;
+			for (auto header : headers) {
+				ret += header.first + ": " + header.second + "\r\n";
+			}
+			return ret;
+		}
+
 		const static std::regex re_head;
 	};
 

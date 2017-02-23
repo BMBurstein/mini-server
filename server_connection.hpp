@@ -26,7 +26,7 @@ namespace bb {
 		void start() { get_req(); }
 
 		template<typename T>
-		auto send_response(T resp) -> decltype(asio::buffer(resp), void()) {
+		auto send_response(T resp) -> decltype(asio::buffer(resp), std::enable_if_t<!asio::is_const_buffer_sequence<T>::value>()) {
 			auto ptr = std::make_unique<T>(std::move(resp));
 			auto buf = asio::buffer(*ptr);
 			asio::async_write(socket, buf, [this, self{ shared_from_this() }, ptr{ std::move(ptr) }](auto ec, auto) {
@@ -46,11 +46,28 @@ namespace bb {
 			});
 		}
 
-		void send_response(int status, std::string const& headers, std::string const& body) {
+		void make_response(int status, std::string const& headers, std::string const& body) {
 			asio::streambuf resp_buf;
 			std::ostream os(&resp_buf);
-			os << "HTTP/1.1 " << status << " STAT\r\nContent-Length: " << body.length() << "\r\n" << headers << "\r\n" << body;
+			os << "HTTP/1.1 " << status << " STAT\r\nContent-Length: " << body.size() << "\r\n" << headers << "\r\n" << body;
 			send_response(std::move(resp_buf));
+		}
+
+		void make_response(int status, HeaderMap const& headers, std::string const& body) {
+			make_response(status, headers_string(headers), body);
+		}
+
+		void make_response(int status, std::string const& headers, DATA const& body) {
+			asio::streambuf resp_buf;
+			std::ostream os(&resp_buf);
+			os << "HTTP/1.1 " << status << " STAT\r\nContent-Length: " << body.size() << "\r\n" << headers << "\r\n";
+			std::ostreambuf_iterator<DATA::value_type> it(&resp_buf);
+			std::copy(body.cbegin(), body.cend(), it);
+			send_response(std::move(resp_buf));
+		}
+
+		void make_response(int status, HeaderMap const& headers, DATA const& body) {
+			make_response(status, headers_string(headers), body);
 		}
 
 	private:
@@ -105,7 +122,7 @@ namespace bb {
 		void handle_body();
 
 		void respond(int stat) {
-			send_response(stat, "", "");
+			make_response(stat, "", "");
 		}
 
 		bool handle_error(asio::error_code err) {
@@ -135,7 +152,7 @@ namespace bb {
 			for (const auto c : rcv_body) {
 				os << c;
 			}
-			send_response(404, "", os.str());
+			make_response(404, "", os.str());
 		}
 
 		std::string method, uri;
@@ -155,5 +172,5 @@ namespace bb {
 	}
 
 	// The '\r' at the end is needed since getline only strips the '\n'
-	const std::regex Connection::re_req(R"(([A-Z]+) ([-/%.+?=&\w]+) HTTP/1.[10]\r)", std::regex::optimize);
+	const std::regex Connection::re_req(R"(([A-Z]+) ([-/%.+?=&:\w]+) HTTP/1.[10]\r)", std::regex::optimize);
 } // namespace bb
