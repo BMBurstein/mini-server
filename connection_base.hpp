@@ -7,26 +7,24 @@
 #include "asio.hpp"
 
 namespace bb {
+	// source: http://stackoverflow.com/a/1801913/331785
+	struct IgnoreCaseLT {
+		// case-independent (ci) compare_less binary function
+		struct nocase_compare
+		{
+			bool operator() (const unsigned char& c1, const unsigned char& c2) const {
+				return tolower(c1) < tolower(c2);
+			}
+		};
+		bool operator() (const std::string & s1, const std::string & s2) const {
+			return std::lexicographical_compare(s1.begin(), s1.end(),   // source range
+				s2.begin(), s2.end(),   // dest range
+				nocase_compare());      // comparison
+		}
+	};
 
 	template<typename T>
 	class http_connection_base : public std::enable_shared_from_this<T> {
-	protected:
-		// source: http://stackoverflow.com/a/1801913/331785
-		struct IgnoreCaseLT {
-			// case-independent (ci) compare_less binary function
-			struct nocase_compare
-			{
-				bool operator() (const unsigned char& c1, const unsigned char& c2) const {
-					return tolower(c1) < tolower(c2);
-				}
-			};
-			bool operator() (const std::string & s1, const std::string & s2) const {
-				return std::lexicographical_compare(s1.begin(), s1.end(),   // source range
-					s2.begin(), s2.end(),   // dest range
-					nocase_compare());      // comparison
-			}
-		};
-
 	public:
 		typedef std::map<std::string, std::string, IgnoreCaseLT> HeaderMap;
 		typedef std::vector<char> DATA;
