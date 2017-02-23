@@ -22,17 +22,10 @@ namespace bb {
 		}
 
 		void send_request(asio::streambuf resp, HandlerFunc func) {
-			handler = func;
-			if (!socket.is_open()) {
-				asio::async_connect(socket, endpoints, [this, self{ shared_from_this() }, resp{ std::move(resp) }](auto ec, auto) mutable {
-					if (handle_error(ec)) {
-						send_req_impl(std::move(resp));
-					}
-				});
-			}
-			else {
-				send_req_impl(std::move(resp));
-			}
+			handler = std::move(func);
+			send_buf = std::move(resp);
+			retries = 1;
+			send_req_impl();
 		}
 
 		void send_request(std::string const& uri, std::string const& headers, HandlerFunc func) {
@@ -43,7 +36,7 @@ namespace bb {
 			asio::streambuf resp_buf;
 			std::ostream os(&resp_buf);
 			os << name_from_method(method) << ' ' << uri << " HTTP/1.1\r\nHost: " << host << "\r\nContent-Length: " << body.length() << "\r\n" << headers << "\r\n" << body;
-			send_request(std::move(resp_buf), func);
+			send_request(std::move(resp_buf), std::move(func));
 		}
 
 		unsigned int status() { return stat; }
@@ -57,19 +50,44 @@ namespace bb {
 			host(std::move(host_url))
 		{ }
 
-		void send_req_impl(asio::streambuf resp) {
-			auto ptr = std::make_unique<asio::streambuf>(std::move(resp));
-			auto& buf = *ptr;
-			asio::async_write(socket, buf, [this, self{ shared_from_this() }, ptr{ std::move(ptr) }](auto ec, auto) {
-				if (handle_error(ec)) {
-					get_resp();
-				}
-			});
+		void connect_send() {
+			if (retries--) {
+				asio::async_connect(socket, endpoints, [this, self{ shared_from_this() }](auto ec, auto) mutable {
+					if (handle_error(ec)) {
+						send_req_impl();
+					}
+				});
+			}
+			else {
+				std::cerr << "Could not connect\n";
+			}
+		}
+
+		void send_req_impl() {
+			if (!socket.is_open()) {
+				connect_send();
+			}
+			else {
+				asio::async_write(socket, send_buf.data(), [this, self{ shared_from_this() }](auto ec, auto) {
+					if (handle_error(ec)) {
+						get_resp();
+					}
+				});
+			}
 		}
 
 		void get_resp() {
 			asio::async_read_until(socket, buf_in, "\r\n", [this, self{ shared_from_this() }](auto ec, auto) {
-				if (handle_error(ec)) {
+#if defined(ASIO_WINDOWS) || defined(__CYGWIN__)
+				static const auto closed_error = asio::error::connection_aborted;
+#else
+				static const auto closed_error = asio::error::eof;
+#endif
+				if (ec == closed_error) {
+					connect_send();
+				}
+				else if (handle_error(ec)) {
+					send_buf.consume(send_buf.size());
 					std::istream is(&buf_in);
 					std::string line;
 					std::getline(is, line);
@@ -105,6 +123,8 @@ namespace bb {
 
 		asio::ip::tcp::resolver::results_type endpoints;
 		std::string host;
+		asio::streambuf send_buf;
+		unsigned int retries;
 
 		unsigned int stat;
 		HandlerFunc handler;
